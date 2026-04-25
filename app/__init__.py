@@ -1,13 +1,16 @@
 from flask import Flask, render_template
 from .models import db, User
 from flask_login import LoginManager
+from flask_migrate import Migrate
 
+migrate = Migrate()
 def create_app():
     app = Flask(__name__)
     from config import Config
     app.config.from_object(Config)
 
     db.init_app(app)
+    migrate.init_app(app, db)
     
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
