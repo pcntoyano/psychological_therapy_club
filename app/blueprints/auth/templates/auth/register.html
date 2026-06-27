@@ -1,0 +1,110 @@
+{% extends "main/base.html" %}
+
+{% block title %}新規会員登録 | 新潟心理療法同好会{% endblock %}
+
+{% block main_content %}
+<div class="min-h-[calc(100vh-16rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-custom-bg">
+    <div class="max-w-md w-full space-y-6 bg-white p-8 md:p-10 rounded-custom border border-custom-border shadow-custom relative">
+        <div class="absolute top-0 left-0 right-0 h-[4px] bg-gradient-to-r from-custom-accent to-custom-accent-mid rounded-t-custom"></div>
+        
+        <div class="text-center">
+            <h2 class="font-header-sans font-bold text-2xl text-custom-text-primary tracking-tight">新規会員登録</h2>
+            <p class="text-xs text-custom-text-secondary mt-1.5">アカウントを作成して、ものの怪の杜に参加しましょう</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="p-3.5 rounded-lg text-xs border {% if category == 'error' %}bg-red-50 text-red-700 border-red-200{% else %}bg-green-50 text-green-700 border-green-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('auth.register') }}" method="POST" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            
+            <div class="space-y-1.5">
+                <label for="name" class="text-[11px] font-bold text-custom-text-secondary uppercase tracking-widest block">
+                    お名前 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="name" id="name" required placeholder="例：山田 太郎"
+                    class="w-full h-11 px-4 bg-custom-surface-2 border border-custom-border rounded-lg text-[13px] text-custom-text-primary focus:outline-none focus:border-custom-accent focus:bg-white transition-all">
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="display_name" class="text-[11px] font-bold text-custom-text-secondary uppercase tracking-widest block">
+                    表示名（ニックネーム）
+                </label>
+                <input type="text" name="display_name" id="display_name" placeholder="例：たろう"
+                    class="w-full h-11 px-4 bg-custom-surface-2 border border-custom-border rounded-lg text-[13px] text-custom-text-primary focus:outline-none focus:border-custom-accent focus:bg-white transition-all">
+                <p class="text-[10px] text-custom-text-muted mt-1 leading-normal">サイト上に投稿者名として表示されます。空欄の場合はお名前が使用されます。</p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="email" class="text-[11px] font-bold text-custom-text-secondary uppercase tracking-widest block">
+                    メールアドレス <span class="text-red-500">*</span>
+                </label>
+                <input type="email" name="email" id="email" required placeholder="example@email.com"
+                    class="w-full h-11 px-4 bg-custom-surface-2 border border-custom-border rounded-lg text-[13px] text-custom-text-primary focus:outline-none focus:border-custom-accent focus:bg-white transition-all">
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="password" class="text-[11px] font-bold text-custom-text-secondary uppercase tracking-widest block">
+                    パスワード <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                    <input type="password" name="password" id="password" required placeholder="8文字以上推奨"
+                        class="w-full h-11 pl-4 pr-14 bg-custom-surface-2 border border-custom-border rounded-lg text-[13px] text-custom-text-primary focus:outline-none focus:border-custom-accent focus:bg-white transition-all">
+                    <button type="button" id="password-toggle"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-custom-text-muted font-mono-dm font-bold uppercase hover:text-custom-accent transition-colors cursor-pointer">
+                        SHOW
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="password_confirm" class="text-[11px] font-bold text-custom-text-secondary uppercase tracking-widest block">
+                    パスワード（確認） <span class="text-red-500">*</span>
+                </label>
+                <input type="password" name="password_confirm" id="password_confirm" required placeholder="パスワードを再入力"
+                    class="w-full h-11 px-4 bg-custom-surface-2 border border-custom-border rounded-lg text-[13px] text-custom-text-primary focus:outline-none focus:border-custom-accent focus:bg-white transition-all">
+            </div>
+
+            <button type="submit"
+                class="w-full h-11 bg-custom-accent text-white rounded-lg text-xs font-bold tracking-widest shadow-lg shadow-custom-accent/15 hover:bg-opacity-95 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer">
+                登録する <span>→</span>
+            </button>
+
+            <div class="text-center mt-4">
+                <p class="text-xs text-custom-text-secondary">
+                    すでにアカウントをお持ちですか？ 
+                    <a href="{{ url_for('auth.login') }}" class="text-custom-accent font-semibold hover:underline">ログイン</a>
+                </p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var btn = document.getElementById('password-toggle');
+        var input = document.getElementById('password');
+        var confirmInput = document.getElementById('password_confirm');
+        if (btn && input) {
+            btn.addEventListener('click', function () {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    confirmInput.type = 'text';
+                    btn.textContent = 'HIDE';
+                } else {
+                    input.type = 'password';
+                    confirmInput.type = 'password';
+                    btn.textContent = 'SHOW';
+                }
+            });
+        }
+    })();
+</script>
+{% endblock %}

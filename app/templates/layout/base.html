@@ -32,8 +32,11 @@
                 <div class="flex items-center">
                     {% if current_user.is_anonymous %}
                     <a href="{{ url_for('auth.login') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">ログイン</a>
+                    <a href="{{ url_for('auth.register') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">新規登録</a>
                     {% else %}
-                    <a href="{{ url_for('admin.dashboard') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">管理画面</a>
+                    {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin.index') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">管理画面</a>
+                    {% endif %}
                     <a href="{{ url_for('auth.logout') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">ログアウト</a>
                     {% endif %}
                 </div>

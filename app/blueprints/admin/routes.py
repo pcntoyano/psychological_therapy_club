@@ -11,6 +11,14 @@ except ImportError:
 import uuid
 from werkzeug.utils import secure_filename
 
+@admin_bp.before_request
+def check_admin_required():
+    if not current_user.is_authenticated:
+        return current_app.login_manager.unauthorized()
+    if not current_user.is_admin:
+        flash('管理画面へのアクセス権限がありません。', 'error')
+        return redirect(url_for('main.index'))
+
 @admin_bp.route('/')
 @login_required
 def index():

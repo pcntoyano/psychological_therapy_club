@@ -35,6 +35,11 @@ class User(db.Model, UserMixin):
             return self.display_name.strip()
         return self.name
 
+    @property
+    def is_admin(self):
+        """ユーザーが管理者（role == 'admin'）であるかどうか。"""
+        return self.role == 'admin'
+
     def __repr__(self):
         return f'<User {self.name}>'
 
