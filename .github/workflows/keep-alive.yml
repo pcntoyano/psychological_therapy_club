@@ -1,0 +1,46 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs at 00:00 UTC (09:00 JST) every 3 days
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # Allows manual execution
+
+jobs:
+  ping:
+    name: Ping Database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary
+
+      - name: Run ping query
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python -c "
+          import os
+          import psycopg2
+          db_url = os.environ.get('DATABASE_URL')
+          if not db_url:
+              raise ValueError('DATABASE_URL secret is not set')
+          try:
+              conn = psycopg2.connect(db_url)
+              cur = conn.cursor()
+              cur.execute('SELECT 1;')
+              result = cur.fetchone()
+              print('Database connection successful. Result:', result)
+              cur.close()
+              conn.close()
+          except Exception as e:
+              print('Error connecting to database:', e)
+              raise e
+          "
