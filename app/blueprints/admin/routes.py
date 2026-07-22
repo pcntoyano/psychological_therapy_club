@@ -4,12 +4,89 @@ from flask_login import login_required, current_user
 from app.models import Post, Category, User, Comment, db
 from datetime import datetime, timedelta
 import os
+from types import SimpleNamespace
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
     ZoneInfo = None  # Python 3.8
 import uuid
 from werkzeug.utils import secure_filename
+
+
+def _validated_image_extension(file):
+    filename = secure_filename(file.filename or '')
+    requested_extension = os.path.splitext(filename)[1].lower()
+
+    header = file.stream.read(16)
+    file.stream.seek(0)
+
+    if header.startswith(b'\x89PNG\r\n\x1a\n'):
+        detected_extension = '.png'
+    elif header.startswith(b'\xff\xd8\xff'):
+        detected_extension = '.jpg'
+    elif header.startswith((b'GIF87a', b'GIF89a')):
+        detected_extension = '.gif'
+    elif header.startswith(b'RIFF') and header[8:12] == b'WEBP':
+        detected_extension = '.webp'
+    else:
+        return None
+
+    if detected_extension == '.jpg':
+        return detected_extension if requested_extension in {'.jpg', '.jpeg'} else None
+    return detected_extension if requested_extension == detected_extension else None
+
+
+def _save_eyecatch(file, extension):
+    new_filename = f"{uuid.uuid4().hex}{extension}"
+    temporary_filename = f".{new_filename}.tmp"
+    upload_path = os.path.join(current_app.root_path, 'static/uploads/eyecatch')
+    os.makedirs(upload_path, exist_ok=True)
+    temporary_path = os.path.join(upload_path, temporary_filename)
+    final_path = os.path.join(upload_path, new_filename)
+    try:
+        file.save(temporary_path)
+        os.replace(temporary_path, final_path)
+    except Exception:
+        _remove_eyecatch(temporary_filename)
+        raise
+    return new_filename
+
+
+def _remove_eyecatch(filename):
+    if not filename:
+        return
+
+    path = os.path.join(
+        current_app.root_path,
+        'static/uploads/eyecatch',
+        filename,
+    )
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        current_app.logger.exception(
+            'Failed to remove uncommitted eyecatch image %s',
+            filename,
+        )
+
+
+def _parse_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_datetime_local(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return None
+
 
 @admin_bp.before_request
 def check_admin_required():
@@ -64,42 +141,46 @@ def create_post():
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
-        category_id = request.form.get('category_id')
-        user_id = request.form.get('user_id') or current_user.id
+        category_id = _parse_int(request.form.get('category_id'))
+        requested_user_id = request.form.get('user_id')
+        user_id = _parse_int(requested_user_id) if requested_user_id else current_user.id
         published_at_str = request.form.get('published_at')
-        published_at = datetime.strptime(published_at_str, '%Y-%m-%dT%H:%M') if published_at_str else datetime.utcnow()
-
+        published_at = _parse_datetime_local(published_at_str)
         event_date_str = request.form.get('event_date')
-        event_date = datetime.strptime(event_date_str, '%Y-%m-%dT%H:%M') if event_date_str else None
+        event_date = _parse_datetime_local(event_date_str)
 
-        # アイキャッチ画像の処理
-        eyecatch_img = None
+        errors = []
+        category = db.session.get(Category, category_id) if category_id is not None else None
+        author = db.session.get(User, user_id) if user_id is not None else None
+
         file = request.files.get('eyecatch_img')
+        image_extension = None
         if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            ext = os.path.splitext(filename)[1]
-            new_filename = f"{uuid.uuid4().hex}{ext}"
-            upload_path = os.path.join(current_app.root_path, 'static/uploads/eyecatch')
-            if not os.path.exists(upload_path):
-                os.makedirs(upload_path)
-            file.save(os.path.join(upload_path, new_filename))
-            eyecatch_img = new_filename
+            image_extension = _validated_image_extension(file)
+            if image_extension is None:
+                errors.append('画像は内容と拡張子が一致する PNG、JPG、GIF、WEBP 形式を選択してください。')
 
         # バリデーション
-        errors = []
         if not title:
             errors.append('見出しを入力してください。')
         if not content:
             errors.append('本文を入力してください。')
-        if not category_id:
+        if category_id is None:
             errors.append('カテゴリーを選択してください。')
-        if not user_id:
+        elif category is None:
+            errors.append('選択されたカテゴリーが見つかりません。')
+        if user_id is None:
             errors.append('投稿者を選択してください。')
+        elif author is None:
+            errors.append('選択された投稿者が見つかりません。')
         if not published_at_str:
             errors.append('公開日時を入力してください。')
+        elif published_at is None:
+            errors.append('公開日時の形式が正しくありません。')
+        if event_date_str and event_date is None:
+            errors.append('イベント開催日時の形式が正しくありません。')
 
         # イベントカテゴリの場合、開催日は必須
-        category = Category.query.get(category_id)
         if category and category.slug == 'event' and not event_date:
             errors.append('カテゴリーが「イベント」の場合は、イベント開催日を入力してください。')
 
@@ -108,17 +189,23 @@ def create_post():
                 flash(error, 'error')
             return render_template('admin/post_form.html', title='新規記事投稿', categories=categories, users=users, post=None, values=request.form)
 
+        eyecatch_img = _save_eyecatch(file, image_extension) if image_extension else None
         post = Post(
             title=title,
             content=content,
-            category_id=int(category_id),
-            user_id=int(user_id),
+            category_id=category_id,
+            user_id=user_id,
             published_at=published_at,
             event_date=event_date,
             eyecatch_img=eyecatch_img
         )
         db.session.add(post)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            _remove_eyecatch(eyecatch_img)
+            raise
         flash('記事を投稿しました。')
         return redirect(url_for('admin.post_list'))
         
@@ -257,58 +344,79 @@ def edit_post(id):
     categories = Category.query.all()
     users = User.query.all()
     if request.method == 'POST':
-        post.title = request.form.get('title')
-        post.content = request.form.get('content')
-        post.category_id = request.form.get('category_id')
-        
-        user_id = request.form.get('user_id')
-        if user_id:
-            post.user_id = user_id
-        
+        title = (request.form.get('title') or '').strip()
+        content = (request.form.get('content') or '').strip()
+        category_id = _parse_int(request.form.get('category_id'))
+        user_id = _parse_int(request.form.get('user_id'))
         published_at_str = request.form.get('published_at')
-        if published_at_str:
-            post.published_at = datetime.strptime(published_at_str, '%Y-%m-%dT%H:%M')
-            
+        published_at = _parse_datetime_local(published_at_str)
         event_date_str = request.form.get('event_date')
-        if event_date_str:
-            post.event_date = datetime.strptime(event_date_str, '%Y-%m-%dT%H:%M')
-        else:
-            post.event_date = None
-        
-        # アイキャッチ画像の処理
+        event_date = _parse_datetime_local(event_date_str)
+
+        errors = []
+        category = db.session.get(Category, category_id) if category_id is not None else None
+        author = db.session.get(User, user_id) if user_id is not None else None
+
         file = request.files.get('eyecatch_img')
+        image_extension = None
         if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            ext = os.path.splitext(filename)[1]
-            new_filename = f"{uuid.uuid4().hex}{ext}"
-            upload_path = os.path.join(current_app.root_path, 'static/uploads/eyecatch')
-            if not os.path.exists(upload_path):
-                os.makedirs(upload_path)
-            file.save(os.path.join(upload_path, new_filename))
-            
-            # 古い画像があれば削除（オプションですが、今回はシンプルに上書き扱いでカラム更新のみ）
-            post.eyecatch_img = new_filename
+            image_extension = _validated_image_extension(file)
+            if image_extension is None:
+                errors.append('画像は内容と拡張子が一致する PNG、JPG、GIF、WEBP 形式を選択してください。')
         
         # バリデーション
-        errors = []
-        if not post.title:
+        if not title:
             errors.append('見出しを入力してください。')
-        if not post.content:
+        if not content:
             errors.append('本文を入力してください。')
-        if not post.category_id:
+        if category_id is None:
             errors.append('カテゴリーを選択してください。')
-        
+        elif category is None:
+            errors.append('選択されたカテゴリーが見つかりません。')
+        if user_id is None:
+            errors.append('投稿者を選択してください。')
+        elif author is None:
+            errors.append('選択された投稿者が見つかりません。')
+        if not published_at_str:
+            errors.append('公開日時を入力してください。')
+        elif published_at is None:
+            errors.append('公開日時の形式が正しくありません。')
+        if event_date_str and event_date is None:
+            errors.append('イベント開催日時の形式が正しくありません。')
+
         # イベントカテゴリの場合、開催日は必須
-        category = Category.query.get(post.category_id)
-        if category and category.slug == 'event' and not post.event_date:
+        if category and category.slug == 'event' and not event_date:
             errors.append('カテゴリーが「イベント」の場合は、イベント開催日を入力してください。')
             
         if errors:
             for error in errors:
                 flash(error, 'error')
-            return render_template('admin/post_form.html', title='記事編集', post=post, categories=categories, users=users)
+            submitted_post = SimpleNamespace(
+                title=title,
+                content=content,
+                category_id=category_id,
+                user_id=user_id,
+                published_at=published_at,
+                event_date=event_date,
+                eyecatch_img=post.eyecatch_img,
+            )
+            return render_template('admin/post_form.html', title='記事編集', post=submitted_post, categories=categories, users=users)
 
-        db.session.commit()
+        post.title = title
+        post.content = content
+        post.category_id = category_id
+        post.user_id = user_id
+        post.published_at = published_at
+        post.event_date = event_date
+        new_eyecatch_img = _save_eyecatch(file, image_extension) if image_extension else None
+        if new_eyecatch_img:
+            post.eyecatch_img = new_eyecatch_img
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            _remove_eyecatch(new_eyecatch_img)
+            raise
         flash('記事を更新しました。')
         return redirect(url_for('admin.post_list'))
         

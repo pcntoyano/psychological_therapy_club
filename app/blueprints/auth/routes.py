@@ -10,8 +10,10 @@ def login():
         return redirect(url_for('main.index'))
     
     if request.method == 'POST':
-        user = User.query.filter_by(email=request.form.get('email')).first()
-        if user is None or not user.check_password(request.form.get('password')):
+        email = (request.form.get('email') or '').strip()
+        password = request.form.get('password') or ''
+        user = User.query.filter_by(email=email).first() if email else None
+        if user is None or not password or not user.check_password(password):
             flash('メールアドレスまたはパスワードが正しくありません。')
             return redirect(url_for('auth.login'))
         
@@ -30,7 +32,7 @@ def login():
         
     return render_template('auth/admin_login.html', title='ログイン')
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     logout_user()
     return redirect(url_for('auth.login'))
@@ -80,4 +82,3 @@ def register():
             return render_template('auth/register.html', title='新規会員登録')
             
     return render_template('auth/register.html', title='新規会員登録')
-

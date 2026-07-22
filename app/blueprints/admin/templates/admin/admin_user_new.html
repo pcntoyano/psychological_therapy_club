@@ -28,6 +28,7 @@
 <!-- FORM CARD -->
 <div class="bg-white border border-custom-border rounded-custom shadow-custom-sm overflow-hidden">
     <form action="{{ url_for('admin.admin_user_new') }}" method="POST" class="p-6 md:p-8 flex flex-col gap-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- 名前 -->
         <div>
             <label for="name" class="label-admin">名前 <span class="text-red-500">*</span></label>

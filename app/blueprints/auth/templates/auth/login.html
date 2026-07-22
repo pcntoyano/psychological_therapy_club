@@ -4,6 +4,7 @@
 <div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
     <h2 class="text-2xl font-bold text-center mb-8">会員ログイン</h2>
     <form action="" method="post" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
             <label for="email" class="block text-sm font-medium text-slate-700">メールアドレス</label>
             <input type="email" name="email" id="email" required class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400

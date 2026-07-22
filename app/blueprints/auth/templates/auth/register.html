@@ -23,7 +23,7 @@
         {% endwith %}
 
         <form action="{{ url_for('auth.register') }}" method="POST" class="space-y-5">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             
             <div class="space-y-1.5">
                 <label for="name" class="text-[11px] font-bold text-custom-text-secondary uppercase tracking-widest block">

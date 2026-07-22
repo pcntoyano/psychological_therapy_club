@@ -40,7 +40,7 @@ class SecurityTestCase(unittest.TestCase):
         ), follow_redirects=True)
 
     def logout(self):
-        return self.client.get('/auth/logout', follow_redirects=True)
+        return self.client.post('/auth/logout', follow_redirects=True)
 
     def test_anonymous_access_blocked(self):
         """Anonymous user should be redirected to login from admin routes"""
@@ -80,6 +80,17 @@ class SecurityTestCase(unittest.TestCase):
 
         response = self.client.get('/admin/posts', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
+
+    def test_logout_helper_clears_authenticated_session(self):
+        """The test helper should use the supported logout method and clear the session."""
+        self.login('admin@example.com', 'password')
+
+        response = self.logout()
+
+        self.assertEqual(response.status_code, 200)
+        protected_response = self.client.get('/admin/posts', follow_redirects=False)
+        self.assertEqual(protected_response.status_code, 302)
+        self.assertIn('/auth/login', protected_response.location)
 
 if __name__ == '__main__':
     unittest.main()
