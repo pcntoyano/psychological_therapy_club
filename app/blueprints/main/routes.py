@@ -73,8 +73,11 @@ def blog_list():
 
 @main_bp.route('/blog/detail/<int:id>')
 def blog_detail(id):
-    post = Post.query.get_or_404(id)
     now_jst = _now_jst()
+    post = Post.query.filter(
+        Post.id == id,
+        Post.published_at <= now_jst,
+    ).first_or_404()
     base_query = Post.query.filter(Post.published_at <= now_jst)
 
     # 前の記事（より新しい公開記事）
@@ -97,7 +100,10 @@ def blog_detail(id):
 
 @main_bp.route('/blog/detail/<int:id>/comment', methods=['POST'])
 def post_comment(id):
-    post = Post.query.get_or_404(id)
+    post = Post.query.filter(
+        Post.id == id,
+        Post.published_at <= _now_jst(),
+    ).first_or_404()
     name = (request.form.get('name') or '').strip()
     content = (request.form.get('content') or '').strip()
 
@@ -121,8 +127,8 @@ def post_comment(id):
 
 @main_bp.route('/essay')
 def essay_list():
-    return render_template('main/essay_list.html', title='エッセー・書評')
+    return redirect(url_for('main.blog_list', category='essay'))
 
 @main_bp.route('/event')
 def event_list():
-    return render_template('main/event_list.html', title='勉強会・セミナー')
+    return redirect(url_for('main.blog_list', category='event'))

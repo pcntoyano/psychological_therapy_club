@@ -1,5 +1,6 @@
 {% extends "admin/admin_base.html" %}
 {% set active_menu = 'post_new' if not post else 'post_list' %}
+{% set submitted = values if values is defined else none %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -112,10 +113,12 @@
 <!-- FORM CARD -->
 <div class="bg-white border border-custom-border rounded-custom shadow-custom-sm overflow-hidden w-full">
     <form method="POST" enctype="multipart/form-data" class="p-6 md:p-8 flex flex-col gap-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- 見出し -->
         <div>
             <label for="title" class="label-admin">見出し <span class="text-red-500 ml-1">*</span></label>
-            <input type="text" id="title" name="title" value="{{ post.title if post else '' }}" placeholder="記事のタイトルを入力"
+            <input type="text" id="title" name="title"
+                value="{{ post.title if post else (submitted.get('title', '') if submitted else '') }}" placeholder="記事のタイトルを入力"
                 class="input-admin text-base font-bold" required>
         </div>
 
@@ -127,8 +130,9 @@
                     <select id="category_id" name="category_id" class="input-admin appearance-none cursor-pointer pr-10"
                         required>
                         {% for category in categories %}
-                        <option value="{{ category.id }}" data-slug="{{ category.slug }}" {{ 'selected' if post and
-                            post.category_id==category.id else '' }}>{{ category.name }}</option>
+                        <option value="{{ category.id }}" data-slug="{{ category.slug }}" {{ 'selected' if
+                            (post and post.category_id == category.id) or
+                            (not post and submitted and submitted.get('category_id')|int == category.id) else '' }}>{{ category.name }}</option>
                         {% endfor %}
                     </select>
                     <span
@@ -143,8 +147,11 @@
                     <select id="user_id" name="user_id" class="input-admin appearance-none cursor-pointer pr-10"
                         required>
                         {% for user in users %}
-                        <option value="{{ user.id }}" {{ 'selected' if (post and post.user_id==user.id) or (not post and
-                            current_user.id==user.id) else '' }}>
+                        <option value="{{ user.id }}" {{ 'selected' if
+                            (post and post.user_id == user.id) or
+                            (not post and submitted and submitted.get('user_id')|int == user.id) or
+                            (not post and (not submitted or not submitted.get('user_id')) and current_user.id == user.id)
+                            else '' }}>
                             {{ user.display_name_or_name }}
                         </option>
                         {% endfor %}
@@ -158,7 +165,7 @@
             <div>
                 <label for="published_at" class="label-admin">公開日時 <span class="text-red-500 ml-1">*</span></label>
                 <input type="datetime-local" id="published_at" name="published_at"
-                    value="{{ post.published_at.strftime('%Y-%m-%dT%H:%M') if post and post.published_at else '' }}"
+                    value="{{ post.published_at.strftime('%Y-%m-%dT%H:%M') if post and post.published_at else (submitted.get('published_at', '') if submitted else '') }}"
                     class="input-admin" required>
             </div>
 
@@ -167,7 +174,7 @@
                 <label for="event_date" class="label-admin">イベント開催日 <span
                         class="text-xs font-normal text-custom-text-muted ml-2">※イベントの場合のみ設定</span></label>
                 <input type="datetime-local" id="event_date" name="event_date"
-                    value="{{ post.event_date.strftime('%Y-%m-%dT%H:%M') if post and post.event_date else '' }}"
+                    value="{{ post.event_date.strftime('%Y-%m-%dT%H:%M') if post and post.event_date else (submitted.get('event_date', '') if submitted else '') }}"
                     class="input-admin">
             </div>
         </div>
@@ -205,7 +212,7 @@
         <div>
             <label for="content" class="label-admin">本文 <span class="text-red-500 ml-1">*</span></label>
             <textarea id="content" name="content" rows="15" placeholder="記事の内容を記述してください"
-                class="input-admin h-auto py-3 resize-none font-sans text-sm leading-relaxed">{{ post.content if post else '' }}</textarea>
+                class="input-admin h-auto py-3 resize-none font-sans text-sm leading-relaxed">{{ post.content if post else (submitted.get('content', '') if submitted else '') }}</textarea>
         </div>
 
         <!-- ACTIONS -->

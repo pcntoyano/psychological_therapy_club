@@ -136,10 +136,13 @@
                     class="hidden sm:flex items-center px-4 py-1 bg-custom-surface-2 border border-custom-border rounded-full">
                     <span class="text-xs font-medium text-custom-text-secondary">{{ current_user.display_name_or_name }}</span>
                 </div>
-                <a href="{{ url_for('auth.logout') }}"
-                    class="text-[10px] md:text-[11px] font-mono-dm text-custom-text-muted border border-custom-border px-2.5 md:px-3 py-1.5 rounded-md bg-white hover:bg-custom-surface-2 transition-colors uppercase tracking-widest font-bold">
-                    Logout
-                </a>
+                <form action="{{ url_for('auth.logout') }}" method="POST" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"
+                        class="text-[10px] md:text-[11px] font-mono-dm text-custom-text-muted border border-custom-border px-2.5 md:px-3 py-1.5 rounded-md bg-white hover:bg-custom-surface-2 transition-colors uppercase tracking-widest font-bold">
+                        Logout
+                    </button>
+                </form>
             </div>
         </header>
 

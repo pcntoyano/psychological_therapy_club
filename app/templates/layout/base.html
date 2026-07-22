@@ -37,7 +37,10 @@
                     {% if current_user.is_admin %}
                     <a href="{{ url_for('admin.index') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">管理画面</a>
                     {% endif %}
-                    <a href="{{ url_for('auth.logout') }}" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">ログアウト</a>
+                    <form action="{{ url_for('auth.logout') }}" method="POST" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="text-slate-600 hover:text-brand px-3 py-2 text-sm font-medium">ログアウト</button>
+                    </form>
                     {% endif %}
                 </div>
             </div>

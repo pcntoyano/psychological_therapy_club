@@ -1,9 +1,13 @@
-from flask import Flask, render_template
+from flask import Flask, redirect, url_for
 from .models import db, User
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 
 migrate = Migrate()
+csrf = CSRFProtect()
+
+
 def create_app():
     app = Flask(__name__)
     from config import Config
@@ -11,6 +15,7 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -33,6 +38,6 @@ def create_app():
     # 仮のトップレベルルート（必要に応じて Blueprint に集約）
     @app.route('/blog/detail')
     def blog_detail():
-        return render_template('blog_detail.html')
+        return redirect(url_for('main.blog_list'))
 
     return app
